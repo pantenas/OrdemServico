@@ -1,0 +1,14 @@
+# Logs e diretórios de sistema
+.gemini/
+.agents/
+.agent/
+_agents/
+_agent/
+brain/
+tmp/
+*.log
+
+# Arquivos de sistema
+Thumbs.db
+Desktop.ini
+.DS_Store
