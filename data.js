@@ -1,12 +1,3 @@
-'use strict';
-
-// Admin Credentials
-const adminCredentials = {
-    email: 'admin@admin.com',
-    senha: '123456',
-    telefone: '74991999999'
-};
-
 // INITIAL MOCKS (Used for reference or initial upload manually if needed)
 const MOCK_TECNICOS = [
     { id: '1', nome: 'Carlos Silva', especialidade: 'Técnico', telefone: '(11) 99999-1111', email: 'carlos.silva@pontodasantenas.com', senha: '123', role: 'Técnico' },
@@ -92,20 +83,23 @@ async function deleteVendaDB(id) { await supabase.from('vendas').delete().eq('id
 function getLoggedUser() { return JSON.parse(localStorage.getItem('pontodasantenas_user')); }
 function setLoggedUser(user) { localStorage.setItem('pontodasantenas_user', JSON.stringify(user)); }
 
-// Sync com Supabase - Sincroniza os mocks com o banco se vazio
-async function syncMocksWithSupabase() {
+// Sync com Supabase - Atualiza os dados dos técnicos com os mocks
+async function syncDataWithSupabase() {
     try {
         if (typeof supabase === 'undefined') return;
         
-        // Verifica se a tabela de técnicos está vazia
-        const { data, count } = await supabase.from('tecnicos').select('*', { count: 'exact' });
+        console.log('Sincronizando dados com Supabase...');
         
-        // Se vazio, insere os mocks
-        if (count === 0) {
-            console.log('Sincronizando dados iniciais com Supabase...');
-            await supabase.from('tecnicos').insert(MOCK_TECNICOS);
-            console.log('Dados sincronizados com sucesso!');
+        // Para cada usuário mock, faz um upsert (atualiza se existe, insere se não)
+        for (const tecnico of MOCK_TECNICOS) {
+            await supabase.from('tecnicos').upsert([tecnico], { onConflict: 'email' });
         }
+        
+        console.log('Dados sincronizados com sucesso!');
+        
+        // Recarrega os dados após sincronizar
+        await loadInitialData('tecnicos');
+        
     } catch (error) {
         console.error('Erro ao sincronizar dados:', error);
     }
@@ -113,8 +107,8 @@ async function syncMocksWithSupabase() {
 
 // Inicia escuta automaticamente
 if (typeof supabase !== 'undefined') {
-    // Sincroniza os mocks primeiro, depois inicia os listeners
-    syncMocksWithSupabase().then(() => {
+    // Sincroniza os dados primeiro, depois inicia os listeners
+    syncDataWithSupabase().then(() => {
         initSupabaseListeners();
     });
 }
