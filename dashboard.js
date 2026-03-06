@@ -12,6 +12,7 @@ function initCharts() {
 function updateKPIs(ordens) {
     document.getElementById('kpiTotal').textContent = ordens.length;
     document.getElementById('kpiAberta').textContent = ordens.filter(o => o.status === 'Aberta').length;
+    document.getElementById('kpiAndamento').textContent = ordens.filter(o => o.status === 'Em Andamento').length;
     document.getElementById('kpiConcluida').textContent = ordens.filter(o => o.status === 'Concluída').length;
 }
 

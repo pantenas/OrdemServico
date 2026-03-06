@@ -4,79 +4,59 @@ let currentFotos = [];
 document.addEventListener('DOMContentLoaded', () => {
     checkSession();
     initForms();
+
+    setOnDataUpdate((type) => {
+        const path = window.location.pathname;
+        if (type === 'ordens' && path.includes('ordens')) {
+            renderOrdensTable();
+            const user = getLoggedUser();
+            if (user && user.role === 'Técnico' && typeof renderTechChart === 'function') {
+                renderTechChart(user);
+            }
+        }
+        if (type === 'tecnicos' && path.includes('tecnicos')) {
+            renderTecnicosGrid();
+        }
+        if (type === 'vendas' && path.includes('vendas')) {
+            renderVendasList();
+        }
+        if (typeof initCharts === 'function' && path.includes('dashboard')) {
+            initCharts();
+        }
+    });
 });
 
 // AUTHENTICATION
 function checkSession() {
     const user = getLoggedUser();
-    if (user) {
-        showApp(user);
-    } else {
-        showLogin();
-    }
-}
+    const isLoginPage = window.location.pathname.endsWith('index.html') || window.location.pathname.endsWith('/') || window.location.pathname === '';
 
-function showLogin() {
-    document.getElementById('login-container').style.display = 'flex';
-    document.getElementById('app-container').style.display = 'none';
+    if (user) {
+        if (isLoginPage) {
+            window.location.href = user.role === 'Técnico' ? 'ordens.html' : 'dashboard.html';
+        } else if (user.role === 'Técnico' && (window.location.pathname.endsWith('tecnicos.html') || window.location.pathname.endsWith('vendas.html'))) {
+            window.location.href = 'ordens.html';
+        }
+    } else {
+        if (!isLoginPage) {
+            window.location.href = 'index.html';
+        }
+    }
 }
 
 function showApp(user) {
     setLoggedUser(user);
-    document.getElementById('login-container').style.display = 'none';
-    document.getElementById('app-container').style.display = 'flex';
-    document.getElementById('userName').textContent = user.nome;
-    document.getElementById('userEmailLabel').textContent = user.email;
-    document.getElementById('userInitial').textContent = user.nome.charAt(0).toUpperCase();
-    document.getElementById('userRoleBadge').textContent = user.role;
-
-    applyRBAC(user);
-    if (user.role === 'Técnico') {
-        navigateTo('ordens');
-    } else {
-        navigateTo('dashboard');
-    }
-}
-
-function applyRBAC(user) {
-    const isVendedor = user.role === 'Vendedor';
-    const isTecnico = user.role === 'Técnico';
-    const isAdmin = user.role === 'Administrador';
-
-    document.getElementById('navGroupCadastros').style.display = isAdmin ? 'block' : 'none';
-
-    if (isTecnico) {
-        document.getElementById('navItemDashboard').style.display = 'none';
-        document.getElementById('btnNovaOS').style.display = 'none';
-        document.getElementById('techChartContainer').style.display = 'block';
-    } else {
-        document.getElementById('navItemDashboard').style.display = 'flex';
-        document.getElementById('btnNovaOS').style.display = 'flex';
-        document.getElementById('techChartContainer').style.display = 'none';
-    }
+    window.location.href = user.role === 'Técnico' ? 'ordens.html' : 'dashboard.html';
 }
 
 function logout() {
     localStorage.removeItem('pontodasantenas_user');
-    location.reload();
+    window.location.href = 'index.html';
 }
 
 // NAVIGATION
 function navigateTo(page) {
-    document.querySelectorAll('.page-view').forEach(p => p.style.display = 'none');
-    document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
-
-    document.getElementById(`page-${page}`).style.display = 'block';
-    const navItem = document.querySelector(`.nav-item[data-page="${page}"]`);
-    if (navItem) navItem.classList.add('active');
-
-    if (page === 'dashboard') initCharts();
-    if (page === 'ordens') {
-        renderOrdensTable();
-        const user = getLoggedUser();
-        if (user && user.role === 'Técnico') renderTechChart(user);
-    }
-    if (page === 'tecnicos') renderTecnicosGrid();
+    window.location.href = `${page}.html`;
 }
 
 // ORDENS DE SERVIÇO
@@ -92,39 +72,33 @@ function renderOrdensTable() {
         const matchesStatus = !statusFilter || o.status === statusFilter;
         const matchesTecnico = !tecnicoFilter || o.tecnico === tecnicoFilter;
 
-        // RBAC Filter: Técnico só vê as próprias ordens
         if (user.role === 'Técnico') return o.tecnico === user.nome && matchesSearch && matchesStatus;
         return matchesSearch && matchesStatus && matchesTecnico;
     });
 
-    const body = document.getElementById('ordensBody');
-    body.innerHTML = filtered.map(o => `
-        <tr>
-            <td><span class="os-number">#${o.numero}</span></td>
-            <td>${new Date(o.data).toLocaleDateString()}</td>
-            <td>
-                <div class="cliente-cell">
-                    ${o.cliente}
-                    <div class="cliente-links">
-                        <a href="https://wa.me/55${o.telefone.replace(/\D/g, '')}" target="_blank" class="wa-link-inline">
-                            <span class="wa-icon">📡</span>
-                            <span class="wa-text">WhatsApp</span>
-                        </a>
+    const container = document.getElementById('ordensList');
+    if (!container) return; // For pages without the list
+
+    container.innerHTML = filtered.map(o => `
+        <div class="list-row">
+            <div class="list-info">
+                <div class="user-avatar" style="background: ${o.status === 'Concluída' ? 'var(--success)' : 'var(--primary-orange)'}">#</div>
+                <div class="list-details">
+                    <span class="list-title">OS #${o.numero} - ${o.cliente}</span>
+                    <span class="list-subtitle">${o.tipo} • ${new Date(o.data).toLocaleDateString()} • ${o.tecnico}</span>
+                    <div style="display: flex; gap: 8px; margin-top: 4px;">
+                        <span class="status-pill ${o.status.toLowerCase().replace(' ', '-')}">${o.status}</span>
+                        <span class="priority-label ${o.prioridade.toLowerCase()}">${o.prioridade}</span>
                     </div>
                 </div>
-            </td>
-            <td>${o.tipo}</td>
-            <td>${o.tecnico}</td>
-            <td><span class="status-pill ${o.status.toLowerCase().replace(' ', '-')}">${o.status}</span></td>
-            <td><span class="priority-label ${o.prioridade.toLowerCase()}">${o.prioridade}</span></td>
-            <td>
-                <div class="actions">
-                    <button class="btn-icon" onclick="editOrdem('${o.id}')" title="Editar"><span class="material-symbols-rounded">edit</span></button>
-                    ${user.role === 'Administrador' ? `<button class="btn-icon color-danger" onclick="deleteOrdem('${o.id}')" title="Excluir"><span class="material-symbols-rounded">delete</span></button>` : ''}
-                    <button class="btn-icon" onclick="printOS('${o.id}')" title="Imprimir"><span class="material-symbols-rounded">print</span></button>
-                </div>
-            </td>
-        </tr>
+            </div>
+            <div class="list-actions">
+                <button class="btn-icon color-whatsapp" onclick="contactWhatsapp('${o.telefone}')" title="WhatsApp"><span class="material-symbols-rounded">chat</span></button>
+                <button class="btn-icon" onclick="editOrdem('${o.id}')" title="Editar"><span class="material-symbols-rounded">edit</span></button>
+                ${user.role === 'Administrador' ? `<button class="btn-icon color-danger" onclick="deleteOrdem('${o.id}')" title="Excluir"><span class="material-symbols-rounded">delete</span></button>` : ''}
+                <button class="btn-icon" onclick="printOS('${o.id}')" title="Imprimir"><span class="material-symbols-rounded">print</span></button>
+            </div>
+        </div>
     `).join('');
 
     populateFilters(ordens);
@@ -138,12 +112,12 @@ function printOS(id) {
             <head>
                 <title>Imprimir OS #${o.numero}</title>
                 <style>
-                    body { font-family: 'Courier New', Courier, monospace; width: 50mm; padding: 5px; margin: 0; font-size: 10px; }
+                    body { font-family: 'Courier New', Courier, monospace; width: 50mm; padding: 5px; margin: 0; font-size: 14px; }
                     .header { text-align: center; border-bottom: 1px solid black; padding-bottom: 5px; margin-bottom: 5px; }
                     .bold { font-weight: bold; }
                     .row { display: flex; justify-content: space-between; margin: 2px 0; }
                     .divider { border-top: 1px dashed black; margin: 5px 0; }
-                    .footer { text-align: center; margin-top: 10px; font-size: 8px; }
+                    .footer { text-align: center; margin-top: 10px; font-size: 12px; }
                     .photo-container { display: flex; flex-direction: column; gap: 5px; margin-top: 10px; }
                     .photo-container img { width: 100%; border: 1px solid #ccc; }
                 </style>
@@ -181,109 +155,166 @@ function printOS(id) {
 function populateFilters(ordens) {
     const tecnicos = [...new Set(ordens.map(o => o.tecnico))];
     const select = document.getElementById('filterTecnico');
-    const current = select.value;
-    select.innerHTML = '<option value="">Colaborador</option>' + tecnicos.map(t => `<option value="${t}" ${t === current ? 'selected' : ''}>${t}</option>`).join('');
+    if (select) {
+        const current = select.value;
+        select.innerHTML = '<option value="">Colaborador</option>' + tecnicos.map(t => `<option value="${t}" ${t === current ? 'selected' : ''}>${t}</option>`).join('');
+    }
 
-    // Para o modal
     const modalSelect = document.getElementById('ordemTecnico');
-    const techs = getTecnicos();
-    modalSelect.innerHTML = techs.map(t => `<option value="${t.nome}">${t.nome} (${t.role})</option>`).join('');
+    if (modalSelect) {
+        const techs = getTecnicos();
+        modalSelect.innerHTML = techs.map(t => `<option value="${t.nome}">${t.nome} (${t.role})</option>`).join('');
+    }
 }
 
 // FORMS
 function initForms() {
-    document.getElementById('loginForm').onsubmit = e => {
-        e.preventDefault();
-        const email = document.getElementById('loginEmail').value;
-        const senha = document.getElementById('loginSenha').value;
-        const user = getTecnicos().find(u => u.email === email && u.senha === senha);
-        if (user) showApp(user);
-        else alert('login ou senha inválido');
-    };
+    const loginForm = document.getElementById('loginForm');
+    if (loginForm) {
+        loginForm.onsubmit = e => {
+            e.preventDefault();
+            const email = document.getElementById('loginEmail').value;
+            const senha = document.getElementById('loginSenha').value;
+            const user = getTecnicos().find(u => u.email === email && u.senha === senha);
+            if (user) showApp(user);
+            else alert('login ou senha inválido');
+        };
+    }
 
-    document.getElementById('ordemForm').onsubmit = e => {
-        e.preventDefault();
-        try {
-            const id = document.getElementById('ordemId').value;
-            const ordens = getOrdens();
-            const novaOrdem = {
-                id: id || Date.now().toString(),
-                numero: id ? ordens.find(o => o.id === id).numero : (ordens.length + 1).toString().padStart(5, '0'),
-                cliente: document.getElementById('ordemCliente').value,
-                telefone: document.getElementById('ordemTelefone').value,
-                endereco: document.getElementById('ordemEndereco').value,
-                tipo: document.getElementById('ordemTipo').value,
-                prioridade: document.getElementById('ordemPrioridade').value,
-                descricao: document.getElementById('ordemDescricao').value,
-                tecnico: document.getElementById('ordemTecnico').value,
-                status: document.getElementById('ordemStatus').value,
-                data: id ? ordens.find(o => o.id === id).data : new Date().toISOString(),
-                previsao: document.getElementById('ordemPrevisao').value,
-                valor: document.getElementById('ordemValor').value,
-                fotos: currentFotos || []
-            };
+    const ordemForm = document.getElementById('ordemForm');
+    if (ordemForm) {
+        ordemForm.onsubmit = e => {
+            e.preventDefault();
+            try {
+                const id = document.getElementById('ordemId').value;
+                const ordens = getOrdens();
+                const novaOrdem = {
+                    id: id || Date.now().toString(),
+                    numero: id ? ordens.find(o => o.id === id).numero : (ordens.length + 1).toString().padStart(5, '0'),
+                    cliente: document.getElementById('ordemCliente').value,
+                    telefone: document.getElementById('ordemTelefone').value,
+                    endereco: document.getElementById('ordemEndereco').value,
+                    tipo: document.getElementById('ordemTipo').value,
+                    prioridade: document.getElementById('ordemPrioridade').value,
+                    descricao: document.getElementById('ordemDescricao').value,
+                    tecnico: document.getElementById('ordemTecnico').value,
+                    status: document.getElementById('ordemStatus').value,
+                    data: id ? ordens.find(o => o.id === id).data : new Date().toISOString(),
+                    previsao: document.getElementById('ordemPrevisao').value,
+                    valor: document.getElementById('ordemValor').value,
+                    fotos: currentFotos || []
+                };
 
-            if (id) {
-                const index = ordens.findIndex(o => o.id === id);
-                if (index !== -1) ordens[index] = novaOrdem;
-            } else {
-                ordens.push(novaOrdem);
+                if (id) {
+                    saveOrdemDB(novaOrdem); // Edit
+                } else {
+                    saveOrdemDB(novaOrdem); // Create (using generated ID)
+                }
+
+                closeModal('modalOrdem');
+            } catch (err) {
+                console.error('Erro ao salvar ordem:', err);
+                alert('Erro ao salvar OS: ' + err.message);
             }
+        };
+    }
 
-            saveOrdens(ordens);
-            closeModal('modalOrdem');
-            renderOrdensTable();
-        } catch (err) {
-            console.error('Erro ao salvar ordem:', err);
-            alert('Erro ao salvar OS: ' + err.message);
-        }
-    };
+    const tecnicoForm = document.getElementById('tecnicoForm');
+    if (tecnicoForm) {
+        tecnicoForm.onsubmit = e => {
+            e.preventDefault();
+            try {
+                const id = document.getElementById('tecnicoId').value;
+                const tecnicos = getTecnicos();
+                const novoTecnico = {
+                    id: id || Date.now().toString(),
+                    nome: document.getElementById('tecnicoNome').value,
+                    email: document.getElementById('tecnicoEmail').value,
+                    senha: document.getElementById('tecnicoSenha').value,
+                    role: document.getElementById('tecnicoRole').value,
+                    especialidade: document.getElementById('tecnicoEspecialidade').value,
+                    telefone: document.getElementById('tecnicoTelefone').value
+                };
 
-    document.getElementById('tecnicoForm').onsubmit = e => {
-        e.preventDefault();
-        try {
-            const id = document.getElementById('tecnicoId').value;
-            const tecnicos = getTecnicos();
-            const novoTecnico = {
-                id: id || Date.now().toString(),
-                nome: document.getElementById('tecnicoNome').value,
-                email: document.getElementById('tecnicoEmail').value,
-                senha: document.getElementById('tecnicoSenha').value,
-                role: document.getElementById('tecnicoRole').value,
-                especialidade: document.getElementById('tecnicoEspecialidade').value,
-                telefone: document.getElementById('tecnicoTelefone').value
-            };
+                if (id) {
+                    saveTecnicoDB(novoTecnico);
+                } else {
+                    saveTecnicoDB(novoTecnico);
+                }
 
-            if (id) {
-                const index = tecnicos.findIndex(t => t.id === id);
-                if (index !== -1) tecnicos[index] = novoTecnico;
-            } else {
-                tecnicos.push(novoTecnico);
+                closeModal('modalTecnico');
+            } catch (err) {
+                console.error('Erro ao salvar colaborador:', err);
+                alert('Erro ao salvar: ' + err.message);
             }
+        };
+    }
 
-            saveTecnicos(tecnicos);
-            closeModal('modalTecnico');
-            renderTecnicosGrid();
-        } catch (err) {
-            console.error('Erro ao salvar colaborador:', err);
-            alert('Erro ao salvar: ' + err.message);
-        }
-    };
+    const vendaForm = document.getElementById('vendaForm');
+    if (vendaForm) {
+        vendaForm.onsubmit = e => {
+            e.preventDefault();
+            try {
+                const id = document.getElementById('vendaId').value;
+                const vendas = getVendas();
+                const novaVenda = {
+                    id: id || Date.now().toString(),
+                    codigo: document.getElementById('vendaCodigo').value,
+                    scua: document.getElementById('vendaSCUA').value,
+                    caid: document.getElementById('vendaCAID').value,
+                    lancada: document.getElementById('vendaLancada').checked,
+                    data: id ? vendas.find(v => v.id === id).data : new Date().toISOString(),
+                    fotos: currentFotos || []
+                };
+
+                if (id) {
+                    saveVendaDB(novaVenda);
+                } else {
+                    saveVendaDB(novaVenda);
+                }
+
+                closeModal('modalVenda');
+            } catch (err) {
+                console.error('Erro ao salvar venda:', err);
+                alert('Erro ao salvar: ' + err.message);
+            }
+        };
+    }
 }
 
 function resetOrdemForm() {
-    document.getElementById('ordemForm').reset();
+    const form = document.getElementById('ordemForm');
+    if (!form) return;
+    form.reset();
     document.getElementById('ordemId').value = '';
-    document.getElementById('modalOrdemTitle').textContent = 'Nova Ordem de Serviço';
+    const title = document.getElementById('modalOrdemTitle');
+    if (title) title.textContent = 'Nova Ordem de Serviço';
     populateFilters(getOrdens());
     currentFotos = [];
     renderFotosPreview();
 }
 
 function resetTecnicoForm() {
-    document.getElementById('tecnicoForm').reset();
+    const form = document.getElementById('tecnicoForm');
+    if (!form) return;
+    form.reset();
     document.getElementById('tecnicoId').value = '';
-    document.getElementById('modalTecnicoTitle').textContent = 'Novo Colaborador';
+    const title = document.getElementById('modalTecnicoTitle');
+    if (title) title.textContent = 'Novo Colaborador';
+}
+
+function resetVendaForm() {
+    const form = document.getElementById('vendaForm');
+    if (!form) return;
+    form.reset();
+    document.getElementById('vendaId').value = '';
+    const title = document.getElementById('modalVendaTitle');
+    if (title) title.textContent = 'Registrar Venda';
+    if (document.getElementById('vendaSCUA')) document.getElementById('vendaSCUA').value = '';
+    if (document.getElementById('vendaCAID')) document.getElementById('vendaCAID').value = '';
+    if (document.getElementById('vendaLancada')) document.getElementById('vendaLancada').checked = false;
+    currentFotos = [];
+    renderFotosPreview();
 }
 
 function openModal(modalId) {
@@ -294,6 +325,8 @@ function openModal(modalId) {
         resetOrdemForm();
     } else if (modalId === 'modalTecnico') {
         resetTecnicoForm();
+    } else if (modalId === 'modalVenda') {
+        resetVendaForm();
     }
 }
 
@@ -325,15 +358,102 @@ function editOrdem(id) {
 
 function deleteOrdem(id) {
     if (confirm('Tem certeza que deseja excluir esta OS?')) {
-        const ordens = getOrdens().filter(o => o.id !== id);
-        saveOrdens(ordens);
-        renderOrdensTable();
+        deleteOrdemDB(id);
     }
 }
 
-function shareWhatsapp() {
-    const tel = document.getElementById('ordemTelefone').value.replace(/\D/g, '');
+function contactWhatsapp(telefone) {
+    const tel = telefone.replace(/\D/g, '');
     if (tel) window.open(`https://wa.me/55${tel}`, '_blank');
+}
+
+function shareWhatsapp() {
+    const tel = document.getElementById('ordemTelefone').value;
+    contactWhatsapp(tel);
+}
+
+// VENDAS
+function renderVendasList() {
+    const vendas = getVendas();
+    const container = document.getElementById('vendasList');
+    if (!container) return;
+
+    const search = document.getElementById('searchVendas').value.toLowerCase();
+    const filtered = vendas.filter(v =>
+        (v.codigo || "").toLowerCase().includes(search) ||
+        (v.scua || "").toLowerCase().includes(search) ||
+        (v.caid || "").toLowerCase().includes(search)
+    );
+
+    container.innerHTML = filtered.map(v => `
+        <div class="list-row ${v.lancada ? 'is-lancada' : ''}">
+            <div class="list-info">
+                <div class="user-avatar" style="background: ${v.lancada ? 'var(--primary-orange)' : 'var(--whatsapp)'}">
+                    <span class="material-symbols-rounded">shopping_cart</span>
+                </div>
+                <div class="list-details">
+                    <span class="list-title">Venda: ${v.codigo} ${v.lancada ? '<span class="badge" style="background: var(--primary-orange); color: white; margin-left: 8px;">Lançada</span>' : ''}</span>
+                    <span class="list-subtitle">SCUA: ${v.scua || '-'} • CAID: ${v.caid || '-'}</span>
+                    <span class="list-subtitle">${new Date(v.data).toLocaleDateString()}</span>
+                    ${v.fotos.length > 0 ? `<span class="badge" style="width: fit-content; background: var(--info); margin-top: 4px;">${v.fotos.length} fotos</span>` : ''}
+                </div>
+            </div>
+            <div class="list-actions">
+                <button class="btn-icon" onclick="editVenda('${v.id}')" title="Editar"><span class="material-symbols-rounded">edit</span></button>
+                <button class="btn-icon color-danger" onclick="deleteVenda('${v.id}')" title="Excluir"><span class="material-symbols-rounded">delete</span></button>
+            </div>
+        </div>
+    `).join('');
+}
+
+function editVenda(id) {
+    const v = getVendas().find(item => item.id === id);
+    openModal('modalVenda');
+    document.getElementById('modalVendaTitle').textContent = 'Editar Venda';
+    document.getElementById('vendaId').value = v.id;
+    document.getElementById('vendaCodigo').value = v.codigo;
+    document.getElementById('vendaSCUA').value = v.scua || '';
+    document.getElementById('vendaCAID').value = v.caid || '';
+    document.getElementById('vendaLancada').checked = v.lancada || false;
+    currentFotos = v.fotos || [];
+    renderFotosPreview();
+}
+
+function deleteVenda(id) {
+    if (confirm('Tem certeza que deseja excluir esta venda?')) {
+        deleteVendaDB(id);
+    }
+}
+
+async function startBarcodeScanner(fieldId) {
+    try {
+        const { BarcodeScanner } = window.Capacitor.Plugins;
+        if (!BarcodeScanner) {
+            const code = prompt("Scanner não disponível. Digite o código:");
+            if (code) document.getElementById(fieldId).value = code;
+            return;
+        }
+
+        // Check/Request permissions
+        const status = await BarcodeScanner.checkPermissions();
+        if (status.camera !== 'granted') {
+            const request = await BarcodeScanner.requestPermissions();
+            if (request.camera !== 'granted') {
+                alert('Permissão de câmera negada.');
+                return;
+            }
+        }
+
+        // Start scanning
+        const { barcodes } = await BarcodeScanner.scan();
+        if (barcodes && barcodes.length > 0) {
+            document.getElementById(fieldId).value = barcodes[0].displayValue;
+        }
+    } catch (err) {
+        console.error('Erro no scanner:', err);
+        const code = prompt("Erro ao abrir câmera. Digite o código:");
+        if (code) document.getElementById(fieldId).value = code;
+    }
 }
 
 // TECNICOS
@@ -343,16 +463,16 @@ function renderTecnicosGrid() {
     if (!container) return;
 
     container.innerHTML = tecnicos.map(t => `
-        <div class="kpi-card">
-            <div class="user-info">
+        <div class="list-row">
+            <div class="list-info">
                 <div class="user-avatar">${t.nome.charAt(0).toUpperCase()}</div>
-                <div class="user-details">
-                    <span class="user-name">${t.nome}</span>
-                    <span class="user-email">${t.email}</span>
-                    <span class="badge" style="margin-top: 4px; display: inline-block; width: fit-content;">${t.role}</span>
+                <div class="list-details">
+                    <span class="list-title">${t.nome}</span>
+                    <span class="list-subtitle">${t.email}</span>
+                    <span class="badge" style="width: fit-content;">${t.role.toUpperCase()}</span>
                 </div>
             </div>
-            <div class="actions">
+            <div class="list-actions">
                 <button class="btn-icon" onclick="editTecnico('${t.id}')"><span class="material-symbols-rounded">edit</span></button>
                 <button class="btn-icon color-danger" onclick="deleteTecnico('${t.id}')"><span class="material-symbols-rounded">delete</span></button>
             </div>
@@ -380,9 +500,7 @@ function deleteTecnico(id) {
         return;
     }
     if (confirm('Tem certeza que deseja excluir este colaborador?')) {
-        const tecnicos = getTecnicos().filter(t => t.id !== id);
-        saveTecnicos(tecnicos);
-        renderTecnicosGrid();
+        deleteTecnicoDB(id);
     }
 }
 
@@ -419,7 +537,7 @@ function renderTechChart(user) {
     });
 }
 
-function handleFileSelect(event) {
+function handleFotoUpload(event) {
     const files = Array.from(event.target.files);
     if (currentFotos.length + files.length > 5) {
         alert('Máximo de 5 fotos permitido.');

@@ -1,3 +1,4 @@
+// INITIAL MOCKS (Used for reference or initial upload manually if needed)
 const MOCK_TECNICOS = [
     { id: '1', nome: 'Carlos Silva', especialidade: 'Técnico', telefone: '(11) 99999-1111', email: 'carlos.silva@pontodasantenas.com', senha: '123', role: 'Técnico' },
     { id: '2', nome: 'Ana Oliveira', especialidade: 'Vendedor', telefone: '(11) 99999-2222', email: 'ana.oliveira@pontodasantenas.com', senha: '123', role: 'Vendedor' },
@@ -5,74 +6,84 @@ const MOCK_TECNICOS = [
     { id: '4', nome: 'Admin', especialidade: 'Administrador', telefone: '(11) 99999-4444', email: 'admin@pontodasantenas.com', senha: 'admin', role: 'Administrador' }
 ];
 
-const MOCK_ORDENS = [
-    {
-        id: '101',
-        numero: '00001',
-        cliente: 'João Pereira',
-        telefone: '(11) 98888-0001',
-        endereco: 'Rua das Flores, 123, São Paulo',
-        descricao: 'Instalação de antena digital externa',
-        tipo: 'Instalação',
-        prioridade: 'Média',
-        status: 'Aberta',
-        tecnico: 'Carlos Silva',
-        data: new Date().toISOString(),
-        previsao: new Date().toISOString().split('T')[0],
-        valor: '150.00',
-        pago: false,
-        fotos: []
-    },
-    {
-        id: '102',
-        numero: '00002',
-        cliente: 'Maria Souza',
-        telefone: '(11) 98888-0002',
-        endereco: 'Av. Paulista, 1000, São Paulo',
-        descricao: 'Manutenção em sistema de recepção',
-        tipo: 'Manutenção',
-        prioridade: 'Alta',
-        status: 'Em Andamento',
-        tecnico: 'Roberto Santos',
-        data: new Date().toISOString(),
-        previsao: new Date().toISOString().split('T')[0],
-        valor: '250.00',
-        pago: true,
-        fotos: []
+// Local Cache
+let localOrdens = [];
+let localTecnicos = [];
+let localVendas = [];
+
+// Callbacks to update UI
+let onDataUpdateCallback = null;
+
+function setOnDataUpdate(cb) {
+    onDataUpdateCallback = cb;
+}
+
+// Inicializa a escuta em tempo real do Supabase
+async function initSupabaseListeners() {
+    // Carrega dados iniciais da nuvem (se a tabela estiver vazia, retorna array vazio)
+    await loadInitialData();
+
+    // Começa a ouvir alterações em tempo real (INSERT, UPDATE, DELETE) em todas as tabelas
+    supabase
+        .channel('schema-db-changes')
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'ordens' }, async payload => {
+            await loadInitialData('ordens');
+            if (onDataUpdateCallback) onDataUpdateCallback('ordens');
+        })
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'tecnicos' }, async payload => {
+            await loadInitialData('tecnicos');
+            if (onDataUpdateCallback) onDataUpdateCallback('tecnicos');
+        })
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'vendas' }, async payload => {
+            await loadInitialData('vendas');
+            if (onDataUpdateCallback) onDataUpdateCallback('vendas');
+        })
+        .subscribe();
+}
+
+async function loadInitialData(tabela = 'all') {
+    if (tabela === 'all' || tabela === 'ordens') {
+        const { data } = await supabase.from('ordens').select('*');
+        if (data) localOrdens = data;
     }
-];
-
-// DATA LAYER
-function getOrdens() {
-    const data = localStorage.getItem('pontodasantenas_ordens');
-    if (!data) {
-        saveOrdens(MOCK_ORDENS);
-        return MOCK_ORDENS;
+    if (tabela === 'all' || tabela === 'tecnicos') {
+        const { data } = await supabase.from('tecnicos').select('*');
+        if (data) localTecnicos = data;
     }
-    return JSON.parse(data);
-}
-
-function saveOrdens(ordens) {
-    localStorage.setItem('pontodasantenas_ordens', JSON.stringify(ordens));
-}
-
-function getTecnicos() {
-    const data = localStorage.getItem('pontodasantenas_tecnicos');
-    if (!data) {
-        saveTecnicos(MOCK_TECNICOS);
-        return MOCK_TECNICOS;
+    if (tabela === 'all' || tabela === 'vendas') {
+        const { data } = await supabase.from('vendas').select('*');
+        if (data) localVendas = data;
     }
-    return JSON.parse(data);
+
+    // Força uma rederização inicial em todas as telas registradas
+    if (tabela === 'all' && onDataUpdateCallback) {
+        onDataUpdateCallback('ordens');
+        onDataUpdateCallback('tecnicos');
+        onDataUpdateCallback('vendas');
+    }
 }
 
-function saveTecnicos(tecnicos) {
-    localStorage.setItem('pontodasantenas_tecnicos', JSON.stringify(tecnicos));
-}
+// Getters Síncronos
+function getOrdens() { return localOrdens; }
+function getTecnicos() { return localTecnicos; }
+function getVendas() { return localVendas; }
 
-function getLoggedUser() {
-    return JSON.parse(localStorage.getItem('pontodasantenas_user'));
-}
+// Modificadores Assíncronos no BD
+// O Upsert serve tanto para Insert quanto para Update (baseado no ID)
+async function saveOrdemDB(ordem) { await supabase.from('ordens').upsert([ordem]); }
+async function deleteOrdemDB(id) { await supabase.from('ordens').delete().eq('id', id); }
 
-function setLoggedUser(user) {
-    localStorage.setItem('pontodasantenas_user', JSON.stringify(user));
+async function saveTecnicoDB(tecnico) { await supabase.from('tecnicos').upsert([tecnico]); }
+async function deleteTecnicoDB(id) { await supabase.from('tecnicos').delete().eq('id', id); }
+
+async function saveVendaDB(venda) { await supabase.from('vendas').upsert([venda]); }
+async function deleteVendaDB(id) { await supabase.from('vendas').delete().eq('id', id); }
+
+// User Session (Mantém localmente)
+function getLoggedUser() { return JSON.parse(localStorage.getItem('pontodasantenas_user')); }
+function setLoggedUser(user) { localStorage.setItem('pontodasantenas_user', JSON.stringify(user)); }
+
+// Inicia escuta automaticamente
+if (typeof supabase !== 'undefined') {
+    initSupabaseListeners();
 }

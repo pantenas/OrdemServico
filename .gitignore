@@ -1,14 +1,9 @@
-# Logs e diretórios de sistema
-.gemini/
-.agents/
-.agent/
-_agents/
-_agent/
-brain/
-tmp/
-*.log
-
-# Arquivos de sistema
-Thumbs.db
-Desktop.ini
+node_modules/
+www/
+android/app/build/
+android/.idea/
+android/.gradle/
+.idea/
 .DS_Store
+package-lock.json
+capacitor.settings.gradle

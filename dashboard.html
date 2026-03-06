@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Resumo Geral — Ponto das Antenas</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet"
+        href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@24,400,0,0" />
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+
+<body class="theme-dark">
+    <div id="app-container">
+        <main class="main-content">
+            <header class="page-header">
+                <h1>Resumo Geral</h1>
+                <div class="header-actions">
+                    <button class="header-btn btn-primary" onclick="openModal('modalOrdem')">
+                        <span class="material-symbols-rounded">add</span>
+                        Nova OS
+                    </button>
+                </div>
+            </header>
+
+            <div class="kpi-grid">
+                <div class="kpi-card">
+                    <div class="kpi-info">
+                        <span class="kpi-label">Total de OS</span>
+                        <span id="kpiTotal" class="kpi-value">0</span>
+                    </div>
+                    <div class="kpi-icon color-blue">
+                        <span class="material-symbols-rounded">assignment</span>
+                    </div>
+                </div>
+                <div class="kpi-card">
+                    <div class="kpi-info">
+                        <span class="kpi-label">Em Aberto</span>
+                        <span id="kpiAberta" class="kpi-value">0</span>
+                    </div>
+                    <div class="kpi-icon color-yellow">
+                        <span class="material-symbols-rounded">pending</span>
+                    </div>
+                </div>
+                <div class="kpi-card">
+                    <div class="kpi-info">
+                        <span class="kpi-label">Em Andamento</span>
+                        <span id="kpiAndamento" class="kpi-value">0</span>
+                    </div>
+                    <div class="kpi-icon color-blue">
+                        <span class="material-symbols-rounded">engineering</span>
+                    </div>
+                </div>
+                <div class="kpi-card">
+                    <div class="kpi-info">
+                        <span class="kpi-label">Concluídas</span>
+                        <span id="kpiConcluida" class="kpi-value">0</span>
+                    </div>
+                    <div class="kpi-icon color-green">
+                        <span class="material-symbols-rounded">check_circle</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="charts-grid">
+                <div class="chart-card">
+                    <h3><span class="material-symbols-rounded">donut_large</span> Status das OS</h3>
+                    <canvas id="statusChart"></canvas>
+                </div>
+                <div class="chart-card">
+                    <h3><span class="material-symbols-rounded">priority_high</span> Prioridade</h3>
+                    <canvas id="prioridadeChart"></canvas>
+                </div>
+                <div class="chart-card">
+                    <h3><span class="material-symbols-rounded">group</span> Volume por Colaborador</h3>
+                    <canvas id="tecnicosChart"></canvas>
+                </div>
+                <div class="chart-card">
+                    <h3><span class="material-symbols-rounded">calendar_month</span> Evolução Mensal</h3>
+                    <canvas id="evolucaoChart"></canvas>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Modals (Shared logic requires them in HTML for now) -->
+    <div id="modalOrdem" class="modal">
+        <div class="modal-content">
+            <header class="modal-header">
+                <h2>Nova Ordem de Serviço</h2>
+                <button class="modal-close" onclick="closeModal('modalOrdem')">
+                    <span class="material-symbols-rounded">close</span>
+                </button>
+            </header>
+            <form id="ordemForm" class="modal-body">
+                <input type="hidden" id="ordemId">
+                <div class="form-row">
+                    <div class="form-group flex-2">
+                        <label for="ordemCliente">Cliente</label>
+                        <input type="text" id="ordemCliente" required>
+                    </div>
+                    <div class="form-group flex-1">
+                        <label for="ordemTelefone">WhatsApp</label>
+                        <input type="text" id="ordemTelefone" required>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="ordemEndereco">Endereço</label>
+                    <input type="text" id="ordemEndereco">
+                </div>
+                <div class="form-row">
+                    <div class="form-group flex-1">
+                        <label for="ordemTipo">Tipo de Serviço</label>
+                        <select id="ordemTipo">
+                            <option value="Instalação">Instalação</option>
+                            <option value="Manutenção">Manutenção</option>
+                            <option value="Suporte Central">Suporte Central</option>
+                            <option value="Retirada">Retirada</option>
+                        </select>
+                    </div>
+                    <div class="form-group flex-1">
+                        <label for="ordemPrioridade">Prioridade</label>
+                        <select id="ordemPrioridade">
+                            <option value="Baixa">Baixa</option>
+                            <option value="Média">Média</option>
+                            <option value="Alta">Alta</option>
+                            <option value="Urgente">Urgente</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="ordemDescricao">Descrição do Problema / Solicitação</label>
+                    <textarea id="ordemDescricao" rows="3"></textarea>
+                </div>
+                <div class="form-row">
+                    <div class="form-group flex-1">
+                        <label for="ordemTecnico">Atribuir a</label>
+                        <select id="ordemTecnico"></select>
+                    </div>
+                    <div class="form-group flex-1">
+                        <label for="ordemStatus">Status Inicial</label>
+                        <select id="ordemStatus">
+                            <option value="Aberta">Aberta</option>
+                            <option value="Em Andamento">Em Andamento</option>
+                            <option value="Concluída">Concluída</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group flex-1">
+                        <label for="ordemPrevisao">Previsão</label>
+                        <input type="date" id="ordemPrevisao">
+                    </div>
+                    <div class="form-group flex-1">
+                        <label for="ordemValor">Valor Estimado (R$)</label>
+                        <input type="number" id="ordemValor" step="0.01">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Fotos / Anexos</label>
+                    <div class="upload-area" onclick="document.getElementById('ordemFotos').click()">
+                        <span class="material-symbols-rounded">cloud_upload</span>
+                        <p>Toque para adicionar fotos</p>
+                        <input type="file" id="ordemFotos" hidden multiple accept="image/*"
+                            onchange="handleFotoUpload(event)">
+                    </div>
+                    <div id="fotosPreview" class="fotos-preview"></div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="header-btn btn-secondary"
+                        onclick="closeModal('modalOrdem')">Cancelar</button>
+                    <button type="submit" class="header-btn btn-primary">Salvar Ordem</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Supabase SDK -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="supabase-config.js"></script>
+    <script src="data.js"></script>
+    <script src="app.js"></script>
+    <script src="dashboard.js"></script>
+    <script src="components.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            initCharts();
+        });
+    </script>
+</body>
+
+</html>
