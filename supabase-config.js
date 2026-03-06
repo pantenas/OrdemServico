@@ -1,5 +1,5 @@
 // CONFIGURAÇÃO DO SUPABASE
 const supabaseUrl = 'https://csxqrqmskgljjxnfjkee.supabase.co';
-const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNzeHFycW1za2dsamp4bmZqa2VlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI4MDU4MDQsImV4cCI6MjA4ODM4MTgwNH0.Bq_ZLDGlMELoQYDnHEjG8gVDIO41bL6-QG_5BlAzx8s';
+const supabaseKey = 'sb_publishable_h4gGE6b4iyo4z4tW2PlvLw_zy9LXSdU';
 
 const supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
