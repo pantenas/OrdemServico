@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Teste de Sincronização Supabase</title>
+</head>
+<body>
+    <h1>Teste de Sincronização</h1>
+    <p>Abra o Console (F12) para ver os logs</p>
+    
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="supabase-config.js"></script>
+    
+    <script>
+        async function testarSync() {
+            console.log('🔍 Testando conexão com Supabase...');
+            
+            if (typeof supabase === 'undefined') {
+                console.error('❌ Supabase não carregou!');
+                return;
+            }
+            
+            console.log('✅ Supabase conectado!');
+            
+            // Testa UPDATE
+            const adminAtualizado = {
+                id: '4',
+                nome: 'Admin',
+                especialidade: 'Administrador',
+                telefone: '74991999999',
+                email: 'admin@admin.com',
+                senha: '123456',
+                role: 'Administrador'
+            };
+            
+            console.log('📤 Tentando fazer UPSERT...');
+            const { data, error } = await supabase
+                .from('tecnicos')
+                .upsert([adminAtualizado], { onConflict: 'email' });
+            
+            if (error) {
+                console.error('❌ Erro:', error);
+            } else {
+                console.log('✅ Sucesso! Dados:', data);
+            }
+        }
+        
+        testarSync();
+    </script>
+</body>
+</html>
