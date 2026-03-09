@@ -171,11 +171,32 @@ function populateFilters(ordens) {
 function initForms() {
     const loginForm = document.getElementById('loginForm');
     if (loginForm) {
-        loginForm.onsubmit = e => {
+        loginForm.onsubmit = async e => {
             e.preventDefault();
             const email = document.getElementById('loginEmail').value;
             const senha = document.getElementById('loginSenha').value;
-            const user = getTecnicos().find(u => u.email === email && u.senha === senha);
+
+            // Tenta pegar do cache local primeiro
+            let user = getTecnicos().find(u => u.email === email && u.senha === senha);
+
+            // Se o cache ainda estiver vazio (carregamento inicial da página demorando) ou não achou...
+            // Vai na nuvem buscar diretamente
+            if (!user && window.supabase) {
+                const btn = loginForm.querySelector('button');
+                btn.innerText = 'Verificando...';
+                const { data, error } = await supabase
+                    .from('tecnicos')
+                    .select('*')
+                    .eq('email', email)
+                    .eq('senha', senha)
+                    .single();
+
+                if (data) {
+                    user = data;
+                }
+                btn.innerText = 'Entrar';
+            }
+
             if (user) showApp(user);
             else alert('login ou senha inválido');
         };
